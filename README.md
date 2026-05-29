@@ -6,9 +6,9 @@ usando **PID** (longitudinal) y **Pure Pursuit** (lateral).
 Curso: Robótica Móvil
 Autor: 
 
-> Nicolás Díaz
-> Santiago Hernández 
-> Daniel Pinilla
+- Nicolás Díaz
+- Santiago Hernández 
+- Daniel Pinilla
 
 ---
 
