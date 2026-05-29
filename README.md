@@ -31,8 +31,9 @@ cd ~/opt/CarlaSimulator
 ```
 
 ### 2. Ejecutar el controlador (Terminal 2)
+
+## Dentro de el lugar donde se descargaron los archivos del repositorio
 ```bash
-cd ~/opt/CarlaSimulator/PythonClient/ProyectoFinal
 python3 main.py
 ```
 
