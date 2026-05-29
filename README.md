@@ -4,7 +4,7 @@ Controlador autónomo que completa el circuito **RaceTrack** en CARLA 0.8.4
 usando **PID** (longitudinal) y **Pure Pursuit** (lateral).
 
 Curso: Robótica Móvil
-Autor: Santiago Hernández (`shdeza12`)
+Autor: Nicolás Díaz y Santiago Hernández
 
 ---
 
