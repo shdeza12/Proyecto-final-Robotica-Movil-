@@ -4,6 +4,8 @@
 Controlador autónomo que completa el circuito RaceTrack en CARLA 0.8.4
 usando PID (longitudinal) y Pure Pursuit (lateral).
 
+##LA CARPETA SE DEBE INSTALAR EN ~/opt/CarlaSimulator/PythonClient#
+
 ## Arquitectura (3 archivos)
 | Archivo | Rol |
 |---------|-----|
@@ -25,7 +27,7 @@ pip3 install numpy
 ### 1. Lanzar el servidor CARLA (Terminal 1)
 ```bash
 cd ~/opt/CarlaSimulator
-./CarlaUE4.sh /Game/Maps/RaceTrack -windowed -carla-server -benchmark -fps=20
+./CarlaUE4.sh /Game/Maps/RaceTrack -windowed -carla-server 
 ```
 
 ### 2. Ejecutar el controlador (Terminal 2)
