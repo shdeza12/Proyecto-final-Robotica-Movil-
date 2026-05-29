@@ -4,7 +4,7 @@
 Controlador autónomo que completa el circuito RaceTrack en CARLA 0.8.4
 usando PID (longitudinal) y Pure Pursuit (lateral).
 
-##LA CARPETA SE DEBE INSTALAR EN ~/opt/CarlaSimulator/PythonClient#
+## LA CARPETA SE DEBE INSTALAR EN ~/opt/CarlaSimulator/PythonClient 
 
 ## Arquitectura (3 archivos)
 | Archivo | Rol |
