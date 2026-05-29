@@ -29,9 +29,14 @@ from pure_pursuit     import PurePursuitController
 HOST               = 'localhost'
 PORT               = 2000
 PLAYER_START_INDEX = 1        # Posición de inicio (dada el día de competencia)
-MAX_SPEED          = 20.0     # Velocidad máxima (m/s) — ~72 km/h, rectas del circuito
 SPEED_MULTIPLIER   = 1.0      # Factor de escala (>1 más rápido, <1 más lento)
-SPEED_PREVIEW      = 40       # Waypoints hacia adelante para anticipar frenado
+# ── Perfil de velocidad por radio de curva + distancia de frenado ──────────
+STRAIGHT_SPEED     = 32.0     # Velocidad máx. en recta (m/s) ~115 km/h
+CURVE_SPEED        = 10.0     # Piso de velocidad en curva muy cerrada (m/s)
+A_LAT_MAX          = 6.0      # Aceleración lateral que el carro aguanta sin salirse (m/s²)
+RADIUS_SENS_WP     = 15       # Separación de muestreo para estimar el radio (~±8.7 m)
+PLAN_DECEL         = 3.0      # Desaceleración planificada para frenar a tiempo (m/s²)
+PLAN_LOOKAHEAD     = 400      # Máx. waypoints a escanear hacia adelante
 FINISH_X           = -184.0   # Coordenada X de la línea de meta
 FINISH_Y           = -12.1    # Coordenada Y de la línea de meta
 FINISH_RADIUS      = 8.0      # Radio de detección de meta (m)
@@ -85,13 +90,64 @@ def find_closest_index(waypoints, x, y):
     return int(np.argmin(dists))
 
 
+def path_radius(waypoints, j, n, k=RADIUS_SENS_WP):
+    """Radio de curvatura (m) del camino en el waypoint j, por circunradio.
+
+    Usa tres puntos separados k waypoints (a, b=j, c). Radio grande = casi
+    recto; radio pequeño = curva cerrada.
+    """
+    a = waypoints[(j - k) % n]
+    b = waypoints[ j      % n]
+    c = waypoints[(j + k) % n]
+    # Área del triángulo (a,b,c) por producto cruz
+    area = abs((b[0]-a[0])*(c[1]-a[1]) - (c[0]-a[0])*(b[1]-a[1])) * 0.5
+    if area < 1e-6:
+        return 1e9                                  # colineales → recta
+    ab = math.hypot(b[0]-a[0], b[1]-a[1])
+    bc = math.hypot(c[0]-b[0], c[1]-b[1])
+    ca = math.hypot(a[0]-c[0], a[1]-c[1])
+    return ab * bc * ca / (4.0 * area)
+
+
+def local_speed_cap(waypoints, j, n):
+    """Velocidad máxima EN el waypoint j limitada por el agarre: v = √(a_lat·R).
+
+    Es la velocidad a la que la aceleración lateral en ese radio no supera
+    A_LAT_MAX, así no se va de frente en la curva.
+    """
+    R = path_radius(waypoints, j, n)
+    v = math.sqrt(A_LAT_MAX * R)
+    return min(max(v, CURVE_SPEED), STRAIGHT_SPEED)
+
+
 def desired_speed(waypoints, progress, start_idx):
-    """Velocidad deseada: mínimo en la ventana de preview para frenar antes de curvas."""
-    n = len(waypoints)
-    speeds = [waypoints[(start_idx + progress + i) % n][2]
-              for i in range(SPEED_PREVIEW)]
-    raw = min(speeds)
-    return float(np.clip(raw * SPEED_MULTIPLIER, 0.0, MAX_SPEED))
+    """Velocidad deseada con perfil físico de frenado.
+
+    Va a STRAIGHT_SPEED en recta y, para cada curva de adelante, limita la
+    velocidad actual a la que permita frenar (a PLAN_DECEL) hasta el cap de esa
+    curva justo cuando se llegue a ella. Así frena con la anticipación correcta
+    según lo rápido que vaya, sin pasarse de vuelta.
+    """
+    n      = len(waypoints)
+    base   = start_idx + progress
+    target = local_speed_cap(waypoints, base % n, n)   # cap en la posición actual
+    dist   = 0.0
+    prev   = waypoints[base % n]
+    # Distancia más allá de la cual nada puede limitar STRAIGHT_SPEED (frenado total)
+    max_brake_dist = STRAIGHT_SPEED ** 2 / (2.0 * PLAN_DECEL)
+
+    for i in range(1, PLAN_LOOKAHEAD):
+        pt    = waypoints[(base + i) % n]
+        dist += math.hypot(pt[0] - prev[0], pt[1] - prev[1])
+        prev  = pt
+        cap   = local_speed_cap(waypoints, (base + i) % n, n)
+        # Velocidad máx. ahora para poder frenar a 'cap' tras recorrer 'dist'
+        allow  = math.sqrt(cap * cap + 2.0 * PLAN_DECEL * dist)
+        target = min(target, allow)
+        if dist > max_brake_dist:
+            break
+
+    return float(np.clip(target * SPEED_MULTIPLIER, 0.0, STRAIGHT_SPEED))
 
 
 def update_progress(wp_xy, x, y, start_idx, progress, n):
